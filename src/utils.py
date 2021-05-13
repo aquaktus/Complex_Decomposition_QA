@@ -6,7 +6,26 @@ import os
 import requests
 import wandb
 import matplotlib.pyplot as plt
+from pytorch_lightning import Trainer, Callback, seed_everything
 
+class KStepCallback(Callback):
+    def __init__(self, steps_to_call=500, callback_fns=[]):
+        self.steps_to_call = steps_to_call
+        self.callback_fns = callback_fns
+        self.latest_global_step = -1
+            
+    def on_batch_end(self, trainer, pl_module):
+        if trainer.global_step % self.steps_to_call == 0 and trainer.global_step!=self.latest_global_step:
+            self.latest_global_step = trainer.global_step
+            for callback in self.callback_fns:
+                callback(trainer)
+
+class CustomTrainer(Trainer):
+    def __init__(self, *args, steps_to_call=500, callback_fns=[], **kwargs):
+        k_step_callback = KStepCallback(steps_to_call, callback_fns)
+        callbacks = [k_step_callback] if callback_fns!=[] else []
+        super().__init__(*args, callbacks=callbacks, **kwargs)
+        
 
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
